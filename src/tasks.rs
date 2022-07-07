@@ -11,18 +11,37 @@ use crate::{
 pub enum TaskType {
     ClearAll,
     Customs,
-    DocumentAddition { details: Option<DocumentAddition> },
-    DocumentPartial { details: Option<DocumentAddition> },
-    DocumentDeletion { details: Option<DocumentDeletion> },
-    IndexCreation { details: Option<IndexCreation> },
-    IndexUpdate { details: Option<IndexUpdate> },
-    IndexDeletion { details: Option<IndexDeletion> },
-    SettingsUpdate { details: Option<Settings> },
+    DocumentAdditionOrUpdate {
+        details: Option<DocumentAdditionOrUpdate>,
+    },
+    DocumentDeletion {
+        details: Option<DocumentDeletion>,
+    },
+    IndexCreation {
+        details: Option<IndexCreation>,
+    },
+    IndexUpdate {
+        details: Option<IndexUpdate>,
+    },
+    IndexDeletion {
+        details: Option<IndexDeletion>,
+    },
+    SettingsUpdate {
+        details: Option<Settings>,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TasksResults {
+    pub results: Vec<Task>,
+    pub limit: u32,
+    pub from: u32,
+    pub next: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DocumentAddition {
+pub struct DocumentAdditionOrUpdate {
     pub indexed_documents: Option<usize>,
     pub received_documents: usize,
 }
@@ -59,8 +78,8 @@ pub struct FailedTask {
     pub task: ProcessedTask,
 }
 
-impl AsRef<u64> for FailedTask {
-    fn as_ref(&self) -> &u64 {
+impl AsRef<u32> for FailedTask {
+    fn as_ref(&self) -> &u32 {
         &self.task.uid
     }
 }
@@ -88,11 +107,11 @@ pub struct ProcessedTask {
     pub index_uid: String,
     #[serde(flatten)]
     pub update_type: TaskType,
-    pub uid: u64,
+    pub uid: u32,
 }
 
-impl AsRef<u64> for ProcessedTask {
-    fn as_ref(&self) -> &u64 {
+impl AsRef<u32> for ProcessedTask {
+    fn as_ref(&self) -> &u32 {
         &self.uid
     }
 }
@@ -105,11 +124,11 @@ pub struct EnqueuedTask {
     pub index_uid: String,
     #[serde(flatten)]
     pub update_type: TaskType,
-    pub uid: u64,
+    pub uid: u32,
 }
 
-impl AsRef<u64> for EnqueuedTask {
-    fn as_ref(&self) -> &u64 {
+impl AsRef<u32> for EnqueuedTask {
+    fn as_ref(&self) -> &u32 {
         &self.uid
     }
 }
@@ -136,7 +155,7 @@ pub enum Task {
 }
 
 impl Task {
-    pub fn get_uid(&self) -> u64 {
+    pub fn get_uid(&self) -> u32 {
         match self {
             Self::Enqueued { content } | Self::Processing { content } => *content.as_ref(),
             Self::Failed { content } => *content.as_ref(),
@@ -291,6 +310,7 @@ impl Task {
     /// assert!(task.is_failure());
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
+    /// ```
     pub fn is_failure(&self) -> bool {
         matches!(self, Self::Failed { .. })
     }
@@ -315,6 +335,7 @@ impl Task {
     /// assert!(task.is_success());
     /// # task.try_make_index(&client).unwrap().delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
+    /// ```
     pub fn is_success(&self) -> bool {
         matches!(self, Self::Succeeded { .. })
     }
@@ -322,61 +343,35 @@ impl Task {
     /// Returns `true` if the [Task] is pending ([Self::Enqueued] or [Self::Processing]).
     ///
     /// # Example
-    ///
-    /// ```
+    /// ```no_run
+    /// # // The test is not run because it checks for an enqueued or processed status
+    /// # // and the task might already be processed when checking the status after the get_task call
     /// # use meilisearch_sdk::{client::*, indexes::*, errors::ErrorCode};
     /// #
     /// # futures::executor::block_on(async move {
     /// # let client = Client::new("http://localhost:7700", "masterKey");
-    /// let task = client
+    /// let task_info = client
     ///   .create_index("is_pending", None)
     ///   .await
     ///   .unwrap();
-    ///
+    /// let task = client.get_task(task_info).await.unwrap();
     /// assert!(task.is_pending());
     /// # task.wait_for_completion(&client, None, None).await.unwrap().try_make_index(&client).unwrap().delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
+    /// ```
     pub fn is_pending(&self) -> bool {
         matches!(self, Self::Enqueued { .. } | Self::Processing { .. })
     }
 }
 
-impl AsRef<u64> for Task {
-    fn as_ref(&self) -> &u64 {
+impl AsRef<u32> for Task {
+    fn as_ref(&self) -> &u32 {
         match self {
             Self::Enqueued { content } | Self::Processing { content } => content.as_ref(),
             Self::Succeeded { content } => content.as_ref(),
             Self::Failed { content } => content.as_ref(),
         }
     }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) async fn async_sleep(interval: Duration) {
-    let (sender, receiver) = futures::channel::oneshot::channel::<()>();
-    std::thread::spawn(move || {
-        std::thread::sleep(interval);
-        let _ = sender.send(());
-    });
-    let _ = receiver.await;
-}
-
-#[cfg(target_arch = "wasm32")]
-pub(crate) async fn async_sleep(interval: Duration) {
-    use std::convert::TryInto;
-    use wasm_bindgen_futures::JsFuture;
-
-    JsFuture::from(js_sys::Promise::new(&mut |yes, _| {
-        web_sys::window()
-            .unwrap()
-            .set_timeout_with_callback_and_timeout_and_arguments_0(
-                &yes,
-                interval.as_millis().try_into().unwrap(),
-            )
-            .unwrap();
-    }))
-    .await
-    .unwrap();
 }
 
 #[cfg(test)]
@@ -388,7 +383,7 @@ mod test {
     };
     use meilisearch_test_macro::meilisearch_test;
     use serde::{Deserialize, Serialize};
-    use std::time::{self, Duration};
+    use std::time::Duration;
 
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
     struct Document {
@@ -411,7 +406,7 @@ mod test {
   "enqueuedAt": "2022-02-03T13:02:38.369634Z",
   "indexUid": "mieli",
   "status": "enqueued",
-  "type": "documentAddition",
+  "type": "documentAdditionOrUpdate",
   "uid": 12
 }"#,
         )
@@ -423,7 +418,7 @@ mod test {
                 content: EnqueuedTask {
                     enqueued_at,
                     index_uid,
-                    update_type: TaskType::DocumentAddition { details: None },
+                    update_type: TaskType::DocumentAdditionOrUpdate { details: None },
                     uid: 12,
                 }
             }
@@ -442,7 +437,7 @@ mod test {
   "indexUid": "mieli",
   "startedAt": "2022-02-03T15:17:02.812338Z",
   "status": "processing",
-  "type": "documentAddition",
+  "type": "documentAdditionOrUpdate",
   "uid": 14
 }"#,
         )
@@ -452,8 +447,8 @@ mod test {
             task,
             Task::Processing {
                 content: EnqueuedTask {
-                    update_type: TaskType::DocumentAddition {
-                        details: Some(DocumentAddition {
+                    update_type: TaskType::DocumentAdditionOrUpdate {
+                        details: Some(DocumentAdditionOrUpdate {
                             received_documents: 19547,
                             indexed_documents: None,
                         })
@@ -477,7 +472,7 @@ mod test {
   "indexUid": "mieli",
   "startedAt": "2022-02-03T15:17:02.812338Z",
   "status": "succeeded",
-  "type": "documentAddition",
+  "type": "documentAdditionOrUpdate",
   "uid": 14
 }"#,
         )
@@ -487,8 +482,8 @@ mod test {
             task,
             Task::Succeeded {
                 content: ProcessedTask {
-                    update_type: TaskType::DocumentAddition {
-                        details: Some(DocumentAddition {
+                    update_type: TaskType::DocumentAdditionOrUpdate {
+                        details: Some(DocumentAdditionOrUpdate {
                             received_documents: 19547,
                             indexed_documents: Some(19546),
                         })
@@ -507,7 +502,7 @@ mod test {
         client: Client,
         movies: Index,
     ) -> Result<(), Error> {
-        let status = movies
+        let task_info = movies
             .add_documents(
                 &[
                     Document {
@@ -523,6 +518,10 @@ mod test {
                 ],
                 None,
             )
+            .await?;
+
+        let task = client
+            .get_task(task_info)
             .await?
             .wait_for_completion(
                 &client,
@@ -531,59 +530,16 @@ mod test {
             )
             .await?;
 
-        assert!(matches!(status, Task::Succeeded { .. }));
+        assert!(matches!(task, Task::Succeeded { .. }));
         Ok(())
-    }
-
-    #[meilisearch_test]
-    async fn test_wait_for_pending_updates_time_out(
-        client: Client,
-        movies: Index,
-    ) -> Result<(), Error> {
-        let task = movies
-            .add_documents(
-                &[
-                    Document {
-                        id: 0,
-                        kind: "title".into(),
-                        value: "The Social Network".to_string(),
-                    },
-                    Document {
-                        id: 1,
-                        kind: "title".into(),
-                        value: "Harry Potter and the Sorcerer's Stone".to_string(),
-                    },
-                ],
-                None,
-            )
-            .await?;
-
-        let error = client
-            .wait_for_task(
-                task,
-                Some(Duration::from_millis(1)),
-                Some(Duration::from_nanos(1)),
-            )
-            .await
-            .unwrap_err();
-
-        assert!(matches!(error, Error::Timeout));
-        Ok(())
-    }
-
-    #[meilisearch_test]
-    async fn test_async_sleep() {
-        let sleep_duration = time::Duration::from_millis(10);
-        let now = time::Instant::now();
-
-        async_sleep(sleep_duration).await;
-
-        assert!(now.elapsed() >= sleep_duration);
     }
 
     #[meilisearch_test]
     async fn test_failing_update(client: Client, movies: Index) -> Result<(), Error> {
-        let task = movies.set_ranking_rules(["wrong_ranking_rule"]).await?;
+        let task_info = movies.set_ranking_rules(["wrong_ranking_rule"]).await?;
+
+        let task = client.get_task(task_info).await?;
+
         let status = client.wait_for_task(task, None, None).await?;
 
         let error = status.unwrap_failure();

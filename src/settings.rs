@@ -2,7 +2,7 @@ use crate::{
     errors::Error,
     indexes::Index,
     request::{request, Method},
-    tasks::Task,
+    task_info::TaskInfo,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -438,8 +438,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn set_settings(&self, settings: &Settings) -> Result<Task, Error> {
-        request::<&Settings, Task>(
+    pub async fn set_settings(&self, settings: &Settings) -> Result<TaskInfo, Error> {
+        request::<&Settings, TaskInfo>(
             &format!("{}/indexes/{}/settings", self.client.host, self.uid),
             &self.client.api_key,
             Method::Post(settings),
@@ -471,8 +471,8 @@ impl Index {
     pub async fn set_synonyms(
         &self,
         synonyms: &HashMap<String, Vec<String>>,
-    ) -> Result<Task, Error> {
-        request::<&HashMap<String, Vec<String>>, Task>(
+    ) -> Result<TaskInfo, Error> {
+        request::<&HashMap<String, Vec<String>>, TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/synonyms",
                 self.client.host, self.uid
@@ -503,8 +503,8 @@ impl Index {
     pub async fn set_stop_words(
         &self,
         stop_words: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<Task, Error> {
-        request::<Vec<String>, Task>(
+    ) -> Result<TaskInfo, Error> {
+        request::<Vec<String>, TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/stop-words",
                 self.client.host, self.uid
@@ -549,8 +549,8 @@ impl Index {
     pub async fn set_ranking_rules(
         &self,
         ranking_rules: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<Task, Error> {
-        request::<Vec<String>, Task>(
+    ) -> Result<TaskInfo, Error> {
+        request::<Vec<String>, TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/ranking-rules",
                 self.client.host, self.uid
@@ -586,8 +586,8 @@ impl Index {
     pub async fn set_filterable_attributes(
         &self,
         filterable_attributes: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<Task, Error> {
-        request::<Vec<String>, Task>(
+    ) -> Result<TaskInfo, Error> {
+        request::<Vec<String>, TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/filterable-attributes",
                 self.client.host, self.uid
@@ -623,8 +623,8 @@ impl Index {
     pub async fn set_sortable_attributes(
         &self,
         sortable_attributes: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<Task, Error> {
-        request::<Vec<String>, Task>(
+    ) -> Result<TaskInfo, Error> {
+        request::<Vec<String>, TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/sortable-attributes",
                 self.client.host, self.uid
@@ -659,8 +659,8 @@ impl Index {
     pub async fn set_distinct_attribute(
         &self,
         distinct_attribute: impl AsRef<str>,
-    ) -> Result<Task, Error> {
-        request::<String, Task>(
+    ) -> Result<TaskInfo, Error> {
+        request::<String, TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/distinct-attribute",
                 self.client.host, self.uid
@@ -690,8 +690,8 @@ impl Index {
     pub async fn set_searchable_attributes(
         &self,
         searchable_attributes: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<Task, Error> {
-        request::<Vec<String>, Task>(
+    ) -> Result<TaskInfo, Error> {
+        request::<Vec<String>, TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/searchable-attributes",
                 self.client.host, self.uid
@@ -726,8 +726,8 @@ impl Index {
     pub async fn set_displayed_attributes(
         &self,
         displayed_attributes: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<Task, Error> {
-        request::<Vec<String>, Task>(
+    ) -> Result<TaskInfo, Error> {
+        request::<Vec<String>, TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/displayed-attributes",
                 self.client.host, self.uid
@@ -760,8 +760,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_settings(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_settings(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!("{}/indexes/{}/settings", self.client.host, self.uid),
             &self.client.api_key,
             Method::Delete,
@@ -785,8 +785,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_synonyms(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_synonyms(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/synonyms",
                 self.client.host, self.uid
@@ -813,8 +813,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_stop_words(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_stop_words(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/stop-words",
                 self.client.host, self.uid
@@ -842,8 +842,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_ranking_rules(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_ranking_rules(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/ranking-rules",
                 self.client.host, self.uid
@@ -870,8 +870,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_filterable_attributes(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_filterable_attributes(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/filterable-attributes",
                 self.client.host, self.uid
@@ -898,8 +898,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_sortable_attributes(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_sortable_attributes(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/sortable-attributes",
                 self.client.host, self.uid
@@ -926,8 +926,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_distinct_attribute(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_distinct_attribute(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/distinct-attribute",
                 self.client.host, self.uid
@@ -954,8 +954,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_searchable_attributes(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_searchable_attributes(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/searchable-attributes",
                 self.client.host, self.uid
@@ -982,8 +982,8 @@ impl Index {
     /// # index.delete().await.unwrap().wait_for_completion(&client, None, None).await.unwrap();
     /// # });
     /// ```
-    pub async fn reset_displayed_attributes(&self) -> Result<Task, Error> {
-        request::<(), Task>(
+    pub async fn reset_displayed_attributes(&self) -> Result<TaskInfo, Error> {
+        request::<(), TaskInfo>(
             &format!(
                 "{}/indexes/{}/settings/displayed-attributes",
                 self.client.host, self.uid
