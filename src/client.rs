@@ -388,9 +388,23 @@ impl Client {
     /// #
     /// # futures::executor::block_on(async move {
     /// let client = Client::new("http://localhost:7700", "masterKey");
+    ///
+    /// # // Method 1
     /// let mut key = KeyBuilder::new("create_key");
     /// key.with_index("*").with_action(Action::DocumentsAdd);
     /// let key = client.create_key(key).await.unwrap();
+    /// # // Method 2
+    /// let key = client.create_key("create_key")
+    ///     .with_index("*")
+    ///     .with_action(Action::DocumentsAdd)
+    ///     .execute()
+    ///     .await.unwrap();
+    /// # // Method 3
+    /// let key = KeyBuilder::new("My little lovely test key")
+    ///   .create(&client).await.unwrap();
+    ///
+    ///
+    ///
     /// assert_eq!(key.description, "create_key");
     /// # client.delete_key(key).await.unwrap();
     /// # });
@@ -560,11 +574,21 @@ impl Client {
     /// # use meilisearch_sdk::*;
     /// # futures::executor::block_on(async move {
     /// # let client = client::Client::new("http://localhost:7700", "masterKey");
-    /// let tasks = client.get_tasks().await.unwrap();
+    ///
+    /// let tasks = TasksQueryBuilder::new().with_index_uid(["movies"]).execute(&client).execute();
+    ///
+    /// let tasks = client
+    ///     .get_tasks()
+    ///     .with_index_uid(["movies"])
+    ///     .execute()
+    ///     .await.unwrap();
+    ///
+    ///
+    /// let tasks = client.get_task().await.unwrap();
     /// dbg!(&tasks);
     /// # });
     /// ```
-    pub async fn get_tasks(&self) -> Result<TasksResults, Error> {
+    pub async fn get_tasks(&self, tasks_query: TasksQuery) -> Result<TasksResults, Error> {
         let tasks = request::<(), TasksResults>(
             &format!("{}/tasks", self.host),
             &self.api_key,
